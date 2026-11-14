@@ -121,6 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (backBtnAdaptation) {
     backBtnAdaptation.addEventListener('click', (e) => {
       e.preventDefault();
+      if (window.chartAdaptationModule && window.chartAdaptationModule.stopAudio) {
+        window.chartAdaptationModule.stopAudio();
+      }
       navigateTo('screen-home');
     });
   }
@@ -128,6 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (quickHomeFromAdaptation) {
     quickHomeFromAdaptation.addEventListener('click', (e) => {
       e.preventDefault();
+      if (window.chartAdaptationModule && window.chartAdaptationModule.stopAudio) {
+        window.chartAdaptationModule.stopAudio();
+      }
       navigateTo('screen-home');
     });
   }
@@ -481,6 +487,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDraggingModalSplit = false;
     let activeCategoryFilter = 'all';
     let searchQuery = '';
+    let currentChartName = 'salesBar';
+
+    // Componente de Audiodescrição Inteligente com Voz (TTS)
+    let audioDescriber = null;
+    if (typeof ChartAudioDescriberComponent === 'function') {
+      audioDescriber = new ChartAudioDescriberComponent('chart-audio-describer-slot');
+    }
 
     // Elementos de Aba
     const tabBtnWorkbench = document.getElementById('tab-btn-workbench');
@@ -689,6 +702,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (metricReadability) metricReadability.textContent = currentResult.stats.readabilityScore;
       if (metricActiveMode) metricActiveMode.textContent = currentResult.stats.mode;
       if (metricDimensions) metricDimensions.textContent = `${currentResult.width} × ${currentResult.height} px`;
+
+      // Atualiza a audiodescrição inteligente com os dados do gráfico ativo
+      if (audioDescriber) {
+        if (currentChartName && currentChartName !== 'custom') {
+          audioDescriber.updateChart(currentChartName);
+        } else if (adapter.adaptedCanvas) {
+          audioDescriber.updateChart(adapter.adaptedCanvas);
+        }
+      }
     }
 
     /**
@@ -733,8 +755,9 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Carrega uma imagem no adapter a partir de source
      */
-    async function loadChartImage(source, defaultPreset = 'auto', successMessage = 'Gráfico importado com sucesso!') {
+    async function loadChartImage(source, defaultPreset = 'auto', successMessage = 'Gráfico importado com sucesso!', chartName = null) {
       try {
+        currentChartName = chartName || (typeof source === 'string' && (source.includes('salesBar') || source.includes('marketPie') || source.includes('retentionLine')) ? source : 'custom');
         await adapter.loadImage(source);
         runAdaptation(defaultPreset);
         showToast(successMessage, 'success');
@@ -929,6 +952,73 @@ document.addEventListener('DOMContentLoaded', () => {
           closeCameraModal();
           loadChartImage(e.target.files[0], 'auto', 'Foto do gráfico importada com sucesso!');
         }
+      });
+    }
+
+    // ========================================================================
+    // AMOSTRAS RÁPIDAS COM AUDIODESCRIÇÃO (BARRAS, PIZZA, LINHAS)
+    // ========================================================================
+    const quickSampleBtns = document.querySelectorAll('.btn-quick-sample');
+    quickSampleBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sampleType = btn.getAttribute('data-sample');
+        if (sampleType === 'bar') {
+          currentChartName = 'salesBar';
+          const sample = adapter.generateSampleBarChart();
+          await loadChartImage(sample, 'deuteranopia', 'Gráfico de Vendas trimestrais carregado!', 'salesBar');
+          if (audioDescriber) audioDescriber.updateChart('salesBar');
+        } else if (sampleType === 'pie') {
+          currentChartName = 'marketPie';
+          const sample = adapter.generateSamplePieChart();
+          await loadChartImage(sample, 'protanopia', 'Gráfico de Market Share carregado!', 'marketPie');
+          if (audioDescriber) audioDescriber.updateChart('marketPie');
+        } else if (sampleType === 'line') {
+          currentChartName = 'retentionLine';
+          const sample = adapter.generateSampleLineChart();
+          await loadChartImage(sample, 'auto', 'Gráfico de Séries Temporais carregado!', 'retentionLine');
+          if (audioDescriber) audioDescriber.updateChart('retentionLine');
+        }
+      });
+    });
+
+    // ========================================================================
+    // BOTÃO RÁPIDO: OUVIR AUDIODESCRIÇÃO IA NA BARRA DE FERRAMENTAS
+    // ========================================================================
+    const btnQuickAudioDesc = document.getElementById('btn-quick-audio-desc');
+    if (btnQuickAudioDesc) {
+      btnQuickAudioDesc.addEventListener('click', async () => {
+        if (!audioDescriber) return;
+        if (!adapter.isLoaded) {
+          currentChartName = 'salesBar';
+          const sample = adapter.generateSampleBarChart();
+          await loadChartImage(sample, 'deuteranopia', 'Gráfico de demonstração carregado com audiodescrição!', 'salesBar');
+          audioDescriber.updateChart('salesBar');
+        }
+        audioDescriber.speech.togglePlayPause();
+        const slot = document.getElementById('chart-audio-describer-slot');
+        if (slot) {
+          slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
+    }
+
+    // Botão de Audiodescrição IA no Modal de Preview da Galeria
+    const btnModalAudioDesc = document.getElementById('btn-modal-audio-desc');
+    if (btnModalAudioDesc) {
+      btnModalAudioDesc.addEventListener('click', () => {
+        if (!audioDescriber || !previewModalChartItem) return;
+        const title = previewModalChartItem.title || '';
+        if (title.includes('Vendas')) {
+          audioDescriber.updateChart('salesBar');
+        } else if (title.includes('Market')) {
+          audioDescriber.updateChart('marketPie');
+        } else if (title.includes('Retenção') || title.includes('Satisfação')) {
+          audioDescriber.updateChart('retentionLine');
+        } else {
+          audioDescriber.updateChart(previewModalChartItem.adaptedDataUrl || previewModalChartItem.originalDataUrl);
+        }
+        audioDescriber.speech.togglePlayPause();
+        showToast('Reproduzindo audiodescrição...', 'info');
       });
     }
 
@@ -1344,6 +1434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closePreviewModal() {
+      if (audioDescriber) audioDescriber.speech.stop();
       modalPreviewChart.classList.remove('active');
       previewModalChartItem = null;
     }
@@ -1461,6 +1552,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imgAdaptedPreview) imgAdaptedPreview.style.display = 'none';
         if (imgOriginalPreview) imgOriginalPreview.style.display = 'none';
         if (splitHandle) splitHandle.style.display = 'none';
+        if (audioDescriber && !audioDescriber.currentAnalysis) {
+          audioDescriber.updateChart('salesBar');
+        }
       } else {
         if (stageEmptyPlaceholder) stageEmptyPlaceholder.style.display = 'none';
         if (imgAdaptedPreview) imgAdaptedPreview.style.display = 'block';
@@ -1486,7 +1580,9 @@ document.addEventListener('DOMContentLoaded', () => {
       runAdaptation,
       renderGallery,
       startCameraStream,
-      closeCameraModal
+      closeCameraModal,
+      stopAudio: () => { if (audioDescriber) audioDescriber.speech.stop(); }
+    };
     };
   }
 
