@@ -488,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeCategoryFilter = 'all';
     let searchQuery = '';
     let currentChartName = 'salesBar';
+    let uploadedFileName = '';
 
     // Componente de Audiodescrição Inteligente com Voz (TTS)
     let audioDescriber = null;
@@ -705,11 +706,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Atualiza a audiodescrição inteligente com os dados do gráfico ativo
       if (audioDescriber) {
-        if (currentChartName && currentChartName !== 'custom') {
-          audioDescriber.updateChart(currentChartName);
-        } else if (adapter.adaptedCanvas) {
-          audioDescriber.updateChart(adapter.adaptedCanvas);
-        }
+        const activePreset = adapter.currentSettings.preset || presetKey || 'auto';
+        const options = {
+          preset: activePreset,
+          presetInfo: adapter.presets[activePreset] || null,
+          originalCanvas: adapter.originalCanvas,
+          adaptedCanvas: adapter.adaptedCanvas,
+          stats: currentResult ? currentResult.stats : null,
+          fileName: uploadedFileName || null
+        };
+        const chartSource = (currentChartName && currentChartName !== 'custom') ? currentChartName : (adapter.adaptedCanvas || 'custom');
+        audioDescriber.updateChart(chartSource, options);
       }
     }
 
@@ -758,6 +765,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadChartImage(source, defaultPreset = 'auto', successMessage = 'Gráfico importado com sucesso!', chartName = null) {
       try {
         currentChartName = chartName || (typeof source === 'string' && (source.includes('salesBar') || source.includes('marketPie') || source.includes('retentionLine')) ? source : 'custom');
+        if (source instanceof File) {
+          uploadedFileName = source.name;
+        } else if (chartName) {
+          uploadedFileName = chartName;
+        }
         await adapter.loadImage(source);
         runAdaptation(defaultPreset);
         showToast(successMessage, 'success');
@@ -773,6 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (chartFileInput) {
       chartFileInput.addEventListener('change', (e) => {
         if (e.target.files && e.target.files[0]) {
+          uploadedFileName = e.target.files[0].name;
           loadChartImage(e.target.files[0], 'auto', 'Gráfico importado com sucesso!');
         }
       });
@@ -795,6 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       chartDropzone.addEventListener('drop', (e) => {
         if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          uploadedFileName = e.dataTransfer.files[0].name;
           loadChartImage(e.dataTransfer.files[0], 'auto', 'Gráfico importado via arrastar e soltar!');
         }
       });
@@ -928,6 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function confirmCapturedPhoto() {
       if (!capturedPhotoDataUrl) return;
+      uploadedFileName = 'Foto de Gráfico Físico (Câmera)';
       const photoToImport = capturedPhotoDataUrl;
       closeCameraModal();
       loadChartImage(photoToImport, 'auto', 'Foto do gráfico físico importada e adaptada com sucesso!');
@@ -949,6 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cameraFallbackInput) {
       cameraFallbackInput.addEventListener('change', (e) => {
         if (e.target.files && e.target.files[0]) {
+          uploadedFileName = e.target.files[0].name || 'Foto de Gráfico Físico';
           closeCameraModal();
           loadChartImage(e.target.files[0], 'auto', 'Foto do gráfico importada com sucesso!');
         }
@@ -964,19 +980,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const sampleType = btn.getAttribute('data-sample');
         if (sampleType === 'bar') {
           currentChartName = 'salesBar';
+          uploadedFileName = 'Desempenho de Vendas (Barras)';
           const sample = adapter.generateSampleBarChart();
           await loadChartImage(sample, 'deuteranopia', 'Gráfico de Vendas trimestrais carregado!', 'salesBar');
-          if (audioDescriber) audioDescriber.updateChart('salesBar');
         } else if (sampleType === 'pie') {
           currentChartName = 'marketPie';
+          uploadedFileName = 'Distribuição de Market Share (Pizza)';
           const sample = adapter.generateSamplePieChart();
           await loadChartImage(sample, 'protanopia', 'Gráfico de Market Share carregado!', 'marketPie');
-          if (audioDescriber) audioDescriber.updateChart('marketPie');
         } else if (sampleType === 'line') {
           currentChartName = 'retentionLine';
+          uploadedFileName = 'Evolução de Retenção e Churn (Linhas)';
           const sample = adapter.generateSampleLineChart();
           await loadChartImage(sample, 'auto', 'Gráfico de Séries Temporais carregado!', 'retentionLine');
-          if (audioDescriber) audioDescriber.updateChart('retentionLine');
         }
       });
     });
@@ -988,11 +1004,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnQuickAudioDesc) {
       btnQuickAudioDesc.addEventListener('click', async () => {
         if (!audioDescriber) return;
+        const activePreset = adapter.currentSettings.preset || 'auto';
+        const options = {
+          preset: activePreset,
+          presetInfo: adapter.presets[activePreset] || null,
+          originalCanvas: adapter.originalCanvas,
+          adaptedCanvas: adapter.adaptedCanvas,
+          stats: currentResult ? currentResult.stats : null,
+          fileName: uploadedFileName || null
+        };
         if (!adapter.isLoaded) {
           currentChartName = 'salesBar';
+          uploadedFileName = 'Desempenho de Vendas (Barras)';
           const sample = adapter.generateSampleBarChart();
           await loadChartImage(sample, 'deuteranopia', 'Gráfico de demonstração carregado com audiodescrição!', 'salesBar');
-          audioDescriber.updateChart('salesBar');
+        } else {
+          audioDescriber.updateChart(currentChartName || adapter.adaptedCanvas, options);
         }
         audioDescriber.speech.togglePlayPause();
         const slot = document.getElementById('chart-audio-describer-slot');
@@ -1007,15 +1034,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnModalAudioDesc) {
       btnModalAudioDesc.addEventListener('click', () => {
         if (!audioDescriber || !previewModalChartItem) return;
-        const title = previewModalChartItem.title || '';
+        const item = previewModalChartItem;
+        const title = item.title || '';
+        const preset = item.adaptationType || 'auto';
+        const options = {
+          preset: preset,
+          presetInfo: adapter.presets[preset] || null,
+          stats: {
+            contrastGain: item.contrastGain || '+25%',
+            readabilityScore: 'WCAG AAA',
+            mode: adapter.presets[preset] ? adapter.presets[preset].label : preset
+          },
+          fileName: title
+        };
         if (title.includes('Vendas')) {
-          audioDescriber.updateChart('salesBar');
+          audioDescriber.updateChart('salesBar', options);
         } else if (title.includes('Market')) {
-          audioDescriber.updateChart('marketPie');
+          audioDescriber.updateChart('marketPie', options);
         } else if (title.includes('Retenção') || title.includes('Satisfação')) {
-          audioDescriber.updateChart('retentionLine');
+          audioDescriber.updateChart('retentionLine', options);
         } else {
-          audioDescriber.updateChart(previewModalChartItem.adaptedDataUrl || previewModalChartItem.originalDataUrl);
+          audioDescriber.updateChart(item.adaptedDataUrl || item.originalDataUrl, options);
         }
         audioDescriber.speech.togglePlayPause();
         showToast('Reproduzindo audiodescrição...', 'info');
@@ -1142,6 +1181,14 @@ document.addEventListener('DOMContentLoaded', () => {
           adapter.setPreset(presetKey);
           syncSlidersWithAdapter();
           updateActivePresetBtn(presetKey);
+          if (audioDescriber) {
+            audioDescriber.updateChart(currentChartName || 'salesBar', {
+              preset: presetKey,
+              presetInfo: adapter.presets[presetKey] || null,
+              originalCanvas: adapter.originalCanvas,
+              adaptedCanvas: adapter.adaptedCanvas
+            });
+          }
           showToast(`Preset selecionado: ${adapter.presets[presetKey].label}. Importe uma imagem para aplicar!`, 'info');
           return;
         }
@@ -1553,7 +1600,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imgOriginalPreview) imgOriginalPreview.style.display = 'none';
         if (splitHandle) splitHandle.style.display = 'none';
         if (audioDescriber && !audioDescriber.currentAnalysis) {
-          audioDescriber.updateChart('salesBar');
+          const activePreset = adapter.currentSettings.preset || 'auto';
+          audioDescriber.updateChart('salesBar', {
+            preset: activePreset,
+            presetInfo: adapter.presets[activePreset] || null,
+            originalCanvas: adapter.originalCanvas,
+            adaptedCanvas: adapter.adaptedCanvas
+          });
         }
       } else {
         if (stageEmptyPlaceholder) stageEmptyPlaceholder.style.display = 'none';
@@ -1582,7 +1635,6 @@ document.addEventListener('DOMContentLoaded', () => {
       startCameraStream,
       closeCameraModal,
       stopAudio: () => { if (audioDescriber) audioDescriber.speech.stop(); }
-    };
     };
   }
 
