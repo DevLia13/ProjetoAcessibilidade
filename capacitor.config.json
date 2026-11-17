@@ -1,0 +1,9 @@
+{
+  "appId": "com.projeto.acessibilidade",
+  "appName": "Projeto Acessibilidade",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -3280,4 +3280,143 @@ html, body {
   background: #e0f2fe;
 }
 
+/* ==========================================================================
+   PWA (PROGRESSIVE WEB APP) & MOBILE APP SUPPORT
+   Compatibilidade com telas de celulares, notch/safe-areas e banner instalável
+   ========================================================================== */
+
+/* Suporte a Safe-Areas no Android e iOS (Notch e Barra Inferior) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .website-navbar,
+  .website-header-teal {
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+
+  body.pwa-standalone {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Banner de Instalação Mobile PWA */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 540px;
+  z-index: 9999;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: auto;
+}
+
+.pwa-banner-card {
+  background: var(--bg-white, #ffffff);
+  border-radius: var(--radius-card, 14px);
+  border: 1px solid #d2e4e8;
+  box-shadow: 0 10px 30px rgba(33, 75, 87, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pwa-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.pwa-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-banner-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--title-teal, #214b57);
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+
+.pwa-banner-desc {
+  font-size: 11.5px;
+  color: var(--text-muted, #555555);
+  line-height: 1.35;
+}
+
+.pwa-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pwa-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--btn-teal, #3f8ba2);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-smooth, all 0.2s ease);
+  box-shadow: 0 2px 6px rgba(63, 139, 162, 0.3);
+}
+
+.pwa-btn-primary:hover {
+  background-color: var(--btn-teal-hover, #337386);
+  transform: translateY(-1px);
+}
+
+.pwa-btn-close {
+  background: transparent;
+  border: none;
+  color: #8899a6;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition-smooth, all 0.2s ease);
+}
+
+.pwa-btn-close:hover {
+  background-color: #eef4f6;
+  color: #333333;
+}
+
+@media (max-width: 480px) {
+  .pwa-banner-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .pwa-banner-actions {
+    justify-content: flex-end;
+  }
+}
+
+
 

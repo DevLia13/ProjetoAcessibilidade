@@ -1,11 +1,13 @@
 {
   "name": "projeto-acessibilidade",
   "version": "1.0.0",
-  "description": "Aplicativo Desktop de Acessibilidade Visual e Teste de Ishihara",
+  "description": "Aplicativo de Acessibilidade Visual e Teste de Ishihara (Desktop & Mobile PWA)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "cap:sync": "cap sync",
+    "cap:android": "cap open android"
   },
   "repository": {
     "type": "git",
